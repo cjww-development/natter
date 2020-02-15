@@ -25,6 +25,7 @@ val btVersion: String = Try(ConfigFactory.load.getString("version")).getOrElse("
 
 val dependencies: Seq[ModuleID] = Seq(
   guice,
+  "com.google.firebase"     % "firebase-admin"     % "6.12.2",
   "org.scalatestplus.play" %% "scalatestplus-play" % "5.0.0"  % Test,
   "org.mockito"             % "mockito-core"       % "3.2.4"  % Test
 )
