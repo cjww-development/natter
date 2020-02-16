@@ -34,6 +34,7 @@ lazy val microservice = Project(appName, file("."))
   .enablePlugins(PlayScala)
   .configs(IntegrationTest)
   .settings(PlayKeys.playDefaultPort := 6161)
+  .settings(PlayKeys.devSettings += "play.server.http.idleTimeout" -> "infinite")
   .settings(inConfig(IntegrationTest)(Defaults.itSettings): _*)
   .settings(
     version                                       :=  btVersion,

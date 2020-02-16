@@ -19,10 +19,11 @@ package database.firestore
 import java.io.InputStream
 
 import com.google.auth.oauth2.GoogleCredentials
-import com.google.cloud.firestore.{DocumentSnapshot, EventListener, Firestore, FirestoreException}
-import com.google.firebase.{FirebaseApp, FirebaseOptions}
+import com.google.cloud.firestore.{DocumentSnapshot, Firestore, QueryDocumentSnapshot}
 import com.google.firebase.cloud.FirestoreClient
+import com.google.firebase.{FirebaseApp, FirebaseOptions}
 import javax.inject.{Inject, Named}
+import play.api.Logger
 
 class Client @Inject()(@Named("firestoreCreds") serviceAccount: InputStream) {
 
@@ -37,24 +38,29 @@ class Client @Inject()(@Named("firestoreCreds") serviceAccount: InputStream) {
     FirestoreClient.getFirestore()
   }
 
-  def getDocument(id: String): Unit = {
-    val docRef = getDb.collection("rooms").document(id)
-    val future = docRef.get()
-    val doc = future.get()
-    if (doc.exists) println("Document data: " + doc.getData)
-    else println("No such document!")
+  def documentExists(field: String, value: String): Boolean = {
+    !getDb.collection("rooms").whereEqualTo(field, value).get().get().isEmpty
   }
 
-  def listenToDoc(id: String): Unit = {
-    val docRef = getDb.collection("rooms").document(id)
-    docRef.addSnapshotListener((snapshot, e) => {
-      if (e != null) {
-        println("Listen failed: " + e)
+  def listenToRoom[T](code: String)(f: Either[QueryDocumentSnapshot, String] => T): Unit = {
+    getDb.collection("rooms").whereEqualTo("code", code).addSnapshotListener((querySnap, _) => {
+      if(querySnap.size() == 1) {
+        f(Left(querySnap.getDocuments.get(0)))
+        return
+      } else {
+        Logger("ListToRoom").info("No Matching room found")
+        f(Right("No matching room"))
         return
       }
+    })
+  }
 
-      if (snapshot != null && snapshot.exists) println("Current data: " + snapshot.getData)
-      else println("Current data: null")
+
+  def listenToDoc[T](id: String)(f: DocumentSnapshot => T): Unit = {
+    val docRef = getDb.collection("rooms").document(id)
+    docRef.addSnapshotListener((snapshot, _) => {
+      f(snapshot)
+      return
     })
   }
 }

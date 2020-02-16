@@ -16,28 +16,48 @@
 
 package controllers
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import akka.stream.Materializer
+import database.firestore.Client
 import javax.inject.Inject
+import play.api.Logger
 import play.api.libs.streams.ActorFlow
 import play.api.mvc.{AbstractController, ControllerComponents, WebSocket}
 
-class RoomController @Inject()(cc: ControllerComponents)(implicit system: ActorSystem, mat: Materializer) extends AbstractController(cc) {
+import scala.concurrent.Future
 
-  def socket = WebSocket.accept[String, String] { request =>
-    ActorFlow.actorRef { out =>
-      MyWebSocketActor.props(out)
-    }
+class RoomController @Inject()(cc: ControllerComponents, firestore: Client)(implicit system: ActorSystem, mat: Materializer) extends AbstractController(cc) {
+
+  def socket = WebSocket.acceptOrResult[String, String] { req =>
+    Future.successful(req.getQueryString("room") match {
+      case Some(room) => Right(
+        ActorFlow.actorRef { out =>
+          MyWebSocketActor.props(out, room)
+        }
+      )
+      case None => Left(NotFound)
+    })
   }
 
   object MyWebSocketActor {
-    def props(out: ActorRef): Props = Props(new MyWebSocketActor(out))
+    def props(out: ActorRef, room: String): Props = Props(new MyWebSocketActor(out, room))
   }
 
-  class MyWebSocketActor(out: ActorRef) extends Actor {
-    def receive: Receive = {
-      case msg: String =>
-        out ! ("I received your message: " + msg)
+  class MyWebSocketActor(out: ActorRef, room: String) extends Actor {
+    firestore.listenToRoom(room) {
+      case Left(data) => out ! (s"Room: ${data.get("code")} People:" + data.get("people"))
+      case Right(_) =>
+        Logger("Poisoned").info("Sent poisoned pill")
+        out ! PoisonPill
+    }
+
+    override def receive: Receive = {
+      case x: String => out ! x
+    }
+
+    override def postStop(): Unit = {
+      super.postStop()
+      Logger("Disconnect").info(s"Connection with client requesting room ${room} closed")
     }
   }
 }
