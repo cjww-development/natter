@@ -1,0 +1,3 @@
+
+
+GET     /ws     controllers.RoomController.socket

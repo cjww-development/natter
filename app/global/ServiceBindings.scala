@@ -18,6 +18,7 @@ package global
 
 import java.io.{FileInputStream, InputStream}
 
+import controllers.RoomController
 import database.firestore.Client
 import play.api.{Configuration, Environment}
 import play.api.inject.{Binding, Module}
@@ -26,6 +27,7 @@ class ServiceBindings extends Module {
 
   override def bindings(environment: Environment, configuration: Configuration): collection.Seq[Binding[_]] = Seq(
     bind[InputStream].qualifiedWith("firestoreCreds").to(new FileInputStream(configuration.get[String]("database.firestore.credPath"))).eagerly(),
-    bind[Client].toSelf.eagerly()
+    bind[Client].toSelf.eagerly(),
+    bind[RoomController].toSelf.eagerly()
   )
 }
