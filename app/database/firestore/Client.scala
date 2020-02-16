@@ -19,7 +19,7 @@ package database.firestore
 import java.io.InputStream
 
 import com.google.auth.oauth2.GoogleCredentials
-import com.google.cloud.firestore.Firestore
+import com.google.cloud.firestore.{DocumentSnapshot, EventListener, Firestore, FirestoreException}
 import com.google.firebase.{FirebaseApp, FirebaseOptions}
 import com.google.firebase.cloud.FirestoreClient
 import javax.inject.{Inject, Named}
@@ -45,5 +45,16 @@ class Client @Inject()(@Named("firestoreCreds") serviceAccount: InputStream) {
     else println("No such document!")
   }
 
-  getDocument("q2efbUk6YTaI6NipM0hj")
+  def listenToDoc(id: String): Unit = {
+    val docRef = getDb.collection("rooms").document(id)
+    docRef.addSnapshotListener((snapshot, e) => {
+      if (e != null) {
+        println("Listen failed: " + e)
+        return
+      }
+
+      if (snapshot != null && snapshot.exists) println("Current data: " + snapshot.getData)
+      else println("Current data: null")
+    })
+  }
 }
